@@ -9,29 +9,51 @@ const privateKey = '../../ssh/venkat_private_key';
 
 
 // CREATE
-router.post('/', async (req, res) => {
+router.post('/signup', async (req, res) => {
 
     try{
-        validateToken(req.headers.authorization);
+        // validateToken(req.headers.authorization);
         // User.create()
-        let hashedpassword = await hashPassword(req.body.newData.password);
-        // console.log(hashedpassword);
-        User.create(
-            {
-                name: req.body.newData.name,
-                email: req.body.newData.email,
-                password: hashedpassword
-            },
-            (err, data) =>{
-            sendResponse(res,err,data);
-            }
-        );
+        let userExists = await verifyUserExists(req.body.newData.email);
+        if(!userExists){
+            let hashedpassword = await hashPassword(req.body.newData.password);
+            // console.log(hashedpassword);
+            User.create(
+                {
+                    name: req.body.newData.name,
+                    email: req.body.newData.email,
+                    password: hashedpassword
+                },
+                (err, data) =>{
+                sendResponse(res,err,data);
+                }
+            );
+        }
+        else{
+            res.json({
+                message: 'user already exists!'
+            })
+        }
+        
     } catch(err){
         res.json({
             message: err
         })
     }
    
+})
+
+router.get('/', async (req, res) => {
+    try{
+        validateToken(req.headers.authorization);
+        User.find((err, data) => {
+            sendResponse(res, err, data);
+        });
+    } catch(err){
+        res.json({
+            message: err
+        })
+    }
 })
 
 router.route('/:id')
@@ -116,6 +138,21 @@ async function hashPassword(userPassword){
     // console.log(userPassword);
     let hashedPassword = await bcrypt.hash(userPassword,salt);
     return hashedPassword;
+}
+
+async function verifyUserExists(userEmail){
+    try{
+        let userDetails = await User.findOne({email: userEmail});
+        console.log(userDetails);
+        if(!userDetails){
+            return false;
+        } else{
+            return true;
+        }
+        
+    } catch(err){
+        throw err.message;
+    }
 }
 
  function validateToken(token){
